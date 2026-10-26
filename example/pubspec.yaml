@@ -1,0 +1,48 @@
+name: minimal
+description: A minimalistic Flutter website template for blogs and portfolios.
+version: 2.1.1
+publish_to: none
+
+environment:
+  # 与折叠屏桥接所需的 Dart 版本保持一致。
+  sdk: '>=3.5.0 <4.0.0'
+  # 鸿蒙示例与库保持同一最低 Flutter 版本，避免平台目录拆成第二个应用。
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 始终验证工作区实现，避免示例实际运行 pub.dev 的旧版本。
+  responsive_framework:
+    path: ../
+  google_fonts: ^6.2.1
+  animations: ^2.0.11
+  loading_gifs: ^0.3.0
+  url_launcher: ^6.3.0 # Requires setup.
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^4.0.0
+
+flutter_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/Minimal-Logo.png"
+  image_path_android: "assets/Minimal-Logo.png"
+  image_path_ios: "assets/Minimal-Logo-iOS.png"
+  adaptive_icon_background: "#FFFFFFFF"
+  adaptive_icon_foreground: "assets/Minimal-Logo-Adaptive.png"
+  web:
+    generate: true
+  macos:
+    generate: true
+  windows:
+    generate: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

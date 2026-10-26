@@ -1,0 +1,13 @@
+{
+  "modelVersion": "5.1.0",
+  "name": "responsive_framework_example",
+  "version": "1.0.0",
+  "description": "Responsive Framework example HarmonyOS host",
+  "main": "",
+  "author": "Responsive Framework contributors",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.6"
+  }
+}

@@ -1,0 +1,7 @@
+/node_modules
+/oh_modules
+/.preview
+/build
+/.cxx
+/.test
+# 注册器记录插件装配关系，提交它能让 DevEco 直接打开宿主工程。
