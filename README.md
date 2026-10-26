@@ -1,6 +1,10 @@
 ![Screenshots](packages/Responsive%20Cover.png)
 # Responsive Framework
-[![Flutter Responsive](https://img.shields.io/badge/flutter-responsive-brightgreen.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![Pub release](https://img.shields.io/pub/v/responsive_framework.svg?style=flat-square)](https://pub.dev/packages/responsive_framework) [![GitHub Release Date](https://img.shields.io/github/release-date/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![GitHub issues](https://img.shields.io/github/issues/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework/issues) [![GitHub top language](https://img.shields.io/github/languages/top/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![Awesome Flutter](https://img.shields.io/badge/Awesome-Flutter-blue.svg?longCache=true&style=flat-square)](https://github.com/Solido/awesome-flutter) [![Libraries.io for GitHub](https://img.shields.io/librariesio/github/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://libraries.io/github/Codelessly/ResponsiveFramework) [![License](https://img.shields.io/badge/License-BSD%200--Clause-orange.svg?style=flat-square)](https://opensource.org/licenses/0BSD)
+
+<!-- 在文档入口提供语言切换，方便中文使用者找到同步维护的说明。 -->
+[English](README.md) | [简体中文](README_cn.md)
+
+[![Flutter Responsive](https://img.shields.io/badge/flutter-responsive-brightgreen.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![Pub release](https://img.shields.io/pub/v/responsive_framework.svg?style=flat-square)](https://pub.dev/packages/responsive_framework) [![GitHub Release Date](https://img.shields.io/github/release-date/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![GitHub issues](https://img.shields.io/github/issues/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework/issues) [![GitHub top language](https://img.shields.io/github/languages/top/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://github.com/Codelessly/ResponsiveFramework) [![Awesome Flutter](https://img.shields.io/badge/Awesome-Flutter-blue.svg?longCache=true&style=flat-square)](https://github.com/Solido/awesome-flutter) [![Libraries.io for GitHub](https://img.shields.io/librariesio/github/Codelessly/ResponsiveFramework.svg?style=flat-square)](https://libraries.io/github/Codelessly/ResponsiveFramework) [![License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](LICENSE)
 
 ![Screenshots](packages/Responsive%20Demo.gif)
 
@@ -23,6 +27,196 @@ The flutter.dev website recreated in Flutter. [View Code](https://github.com/Cod
 The pub.dev website recreated in Flutter. [View Code](https://github.com/Codelessly/FlutterPubWebsite)
 
 ## Quick Start
+
+<!-- 折叠屏接入必须使用当前窗口，明确入口位置可避免坐标和插件依赖错误。 -->
+### Android foldables and iPhone Duo
+
+Version 1.6 requires Flutter 3.24+, Dart 3.5+, and iOS 15+ for the iOS plugin.
+Build with the iOS 27.1 SDK to receive iPhone Duo reserved regions.
+Android uses Flutter's engine-provided `MediaQuery.displayFeatures`.
+iOS uses [foldable](https://github.com/berkaycatak/foldable).
+
+```dart
+MaterialApp(
+  builder: (context, child) => ResponsiveFoldable(child: child!),
+  home: ResponsiveTwoPane(
+    primary: ListScreen(),
+    secondary: DetailScreen(),
+  ),
+)
+```
+
+`ResponsiveTwoPane` follows active vertical/horizontal folds and physical hinge
+gaps. Without a separating feature, it uses two columns at 840 logical pixels
+and above (600 on OHOS). Configure `breakpoint`, `spacing`, and `primaryFraction` for your
+content. Set `showSecondary: true` to display details in compact windows.
+Both panes retain their State while switching, and receive local MediaQuery
+sizes, insets, and display-feature coordinates. Use SafeArea inside each pane.
+
+<!-- 接口围绕业务实际需要组织，明确未知值，避免按机型或假角度决定布局。 -->
+#### Read fold state and geometry
+
+Place `ResponsiveFoldable` at the window origin in `MaterialApp.builder`.
+The following methods work below it, including inside either pane:
+
+| API | Result and intended use |
+| --- | --- |
+| `ResponsiveFoldable.postureOf(context)` | `ResponsiveFoldPosture.unknown`, `.closed`, `.halfOpened`, or `.flat`. Use posture for fold-specific behavior; use constraints to choose general layouts. |
+| `ResponsiveFoldable.isFoldableOf(context)` | `bool?`: `true` for a detected hinge, `false` only when native APIs explicitly report no hinge, `null` when unknown. An empty Android feature list does not prove the device is a normal phone. |
+| `ResponsiveFoldable.angleOf(context)` | Latest iOS/OHOS first-hinge angle in degrees, or `null` when unavailable. Angles are not synthesized from posture. |
+| `ResponsiveFoldable.anglesOf(context)` | Read-only angles in platform hinge order. OHOS can supply multiple hinges; iOS supplies at most one. Unknown data returns an empty list. |
+| `ResponsiveFoldable.hingeAngleStream` | iOS/OHOS first-hinge angle stream for effects confined to a small widget. Other platforms return an empty stream. Cancel imperative subscriptions when disposing. |
+| `ResponsiveFoldable.displayFeaturesOf(context)` | Active window-level folds and camera regions, including iOS regions when `bridgeMode` is `.none`. |
+
+iOS posture/region readers subscribe to those aspects, so angle-only changes do
+not rebuild them. Android window features remain available after a pane's local
+MediaQuery removes its separating fold. Without a provider, engine queries fall
+back to the current MediaQuery; unknown capability remains `null`.
+
+Window-level features use the coordinate system at the `ResponsiveFoldable`
+entry. Inside a pane, use `MediaQuery.of(context).displayFeatures` for **local**
+coordinates. Never pass window rectangles into a translated/scaled subtree
+without converting them.
+
+<!-- 区域读取与浮层桥接独立，业务可以适配双栏而保留系统浮层的原有行为。 -->
+On iOS, to adapt your page without globally splitting Material dialogs and sheets:
+
+```dart
+MaterialApp(
+  builder: (context, child) => ResponsiveFoldable(
+    bridgeMode: DisplayFeatureBridgeMode.none,
+    child: child!,
+  ),
+  home: Builder(builder: (context) {
+    return ResponsiveTwoPane(
+      displayFeatures: ResponsiveFoldable.displayFeaturesOf(context),
+      minPrimarySize: const Size(240, 200),
+      minSecondarySize: const Size(360, 240),
+      primary: ListScreen(),
+      secondary: DetailScreen(),
+    );
+  }),
+)
+```
+
+#### Control layout policy
+
+| Property | Default | Behavior |
+| --- | --- | --- |
+| `mode` | `ResponsiveTwoPaneMode.auto` | `auto` follows divisions or the width breakpoint; `single` shows one pane; `dual` requests two panes without requiring the width breakpoint. |
+| `breakpoint` | `null` → `ResponsiveTwoPane.defaultBreakpoint` | Width threshold in logical pixels for ordinary wide-screen columns. Defaults to 840 (Material expanded) and 600 on OHOS, where `Navigation` splits from 600vp and Mate X inner displays are about 711vp wide. |
+| `minPrimarySize`, `minSecondarySize` | `Size.zero`, `Size.zero` | Independent minimum outer sizes for the two panes. If either candidate is too small, fall back to one visible pane, even in `dual` mode. |
+| `primaryFraction` | `0.4` | Primary share of the width after spacing on ordinary wide screens. Physical folds determine their own split. |
+| `spacing` | `24` | Gap between ordinary columns; physical hinge bounds determine the actual fold gap. |
+| `showSecondary` | `false` | Selects the secondary pane when only one is visible. |
+| `displayFeatures` | `null` | Optional features in this layout's coordinates, for custom integration, tests, or previews. An explicit empty list disables fold divisions. |
+
+Physical hinge avoidance always wins: `single` and minimum-size fallbacks never
+expand across a hinge. On a divided screen, the selected pane stays in its own
+region. Hidden panes retain State, but are offstage, excluded from focus and
+semantics, and have tickers disabled. Their subscriptions and business work
+remain the responsibility of the owning widget.
+
+<!-- 消费真实布局结果，而不是再次按屏宽猜测，可以覆盖半折叠与最小尺寸回退。 -->
+#### Read the resolved layout and place overlays
+
+Inside `primary` or `secondary`, `ResponsiveTwoPane.of(context)` returns an
+immutable `ResponsiveTwoPaneLayout`. `maybeOf(context)` returns `null` outside
+a pane layout; `of` throws a descriptive error.
+
+The snapshot exposes `isDual`, `axis` (`null` for single-pane layouts),
+`isPrimaryVisible`, `isSecondaryVisible`, `primaryBounds`, `secondaryBounds`,
+`hasDisplayFeatureDivision`, and read-only `availableRegions`. The bounds are
+relative to the TwoPane origin. Available regions describe the physical
+partition before ordinary columns/spacing; the component renders at most two
+panes even if more regions exist.
+
+For example, hide the compact-navigation Back button when both panes are visible:
+
+```dart
+Builder(builder: (context) {
+  final layout = ResponsiveTwoPane.of(context);
+  return layout.isDual ? const SizedBox.shrink() : BackButton(onPressed: onBack);
+})
+```
+
+Use a context belonging to the triggering control for dialog/sheet placement:
+
+```dart
+Builder(builder: (buttonContext) => IconButton(
+  icon: const Icon(Icons.info_outline),
+  onPressed: () => showDialog<void>(
+    context: buttonContext,
+    anchorPoint: ResponsiveTwoPane.anchorPointFor(buttonContext),
+    builder: (context) => const AlertDialog(title: Text('Details')),
+  ),
+))
+```
+
+Call `anchorPointFor` after layout, normally from a control callback. It converts
+the control center to window coordinates; pane-local rectangle centers cannot
+be passed to a root Navigator directly. For a custom nested Navigator, convert
+to that Navigator's coordinate system instead.
+
+As with Flutter's DisplayFeatureSubScreen, put the layout at the origin of its
+MediaQuery. If placing it inside an offset container, pass `displayFeatures`
+converted to that container's local coordinates. Width and height must be bounded.
+
+Bridging is enabled by explicitly adding `ResponsiveFoldable`. The default
+`DisplayFeatureBridgeMode.full` also constrains dialogs and bottom sheets to a
+sub-screen: pass an `anchorPoint` based on the triggering control. Choose
+`DisplayFeatureBridgeMode.cutoutsOnly` or `.none` to limit this behavior.
+Do not nest bridge providers or use a second copy of the same fold features.
+`bridgeMode` configures iOS and OHOS. Android always preserves engine-provided display
+features, including Flutter's existing dialog/sub-screen behavior.
+
+```sh
+cd example
+flutter pub get
+flutter run
+```
+
+The example references this checkout with `path: ../`. Its default screen uses
+local notes and includes device, book, tabletop, and flat previews. The original
+blog remains available at `/list`. See
+[example run instructions](example/FOLDABLE.md) for platform requirements.
+The core declares Flutter 3.24+; the example host requires Flutter 3.47+ for its
+AGP 9 built-in Kotlin toolchain. Minimum-SDK compatibility has not been separately
+tested on Flutter 3.24.
+
+<!-- Flutter 示例与 OHOS 原生宿主按插件标准结构共存于 example/。 -->
+### HarmonyOS / OHOS (1.7.0+)
+
+The `ohos/` ArkTS plugin is registered automatically by Flutter OH. Existing
+`ResponsiveFoldable` / `ResponsiveTwoPane` calls work without a separate UI API.
+Use an **OH-enabled Flutter SDK**, not the standard SDK, for the HarmonyOS host:
+
+```sh
+cd example
+/path/to/flutter-ohos/bin/flutter pub get
+/path/to/flutter-ohos/bin/flutter test
+/path/to/flutter-ohos/bin/flutter build hap --debug --no-codesign
+```
+
+The unified example was validated with Flutter OH 3.35.8 and the installed
+DevEco SDK (API 26); native APIs require API 12+. Its native host is
+`example/ohos/`, and it supports fold state,
+physical crease rectangles, display/window changes, and multi-hinge angles.
+`full` publishes crease geometry into MediaQuery; `none` / `cutoutsOnly` preserve
+engine data and expose plugin geometry through `displayFeaturesOf`.
+
+Native rectangles are screen pixels: the bridge subtracts the drawable-window
+origin and divides by the actual FlutterView DPR. Mismatched display IDs or
+viewport sizes suppress crease geometry while retaining posture/capability.
+An embedded FlutterView with a different origin/size requires host integration;
+the bridge never invents a centered fold. Angles stay unknown until a real
+sensor event. Physical regions are retained, but TwoPane still renders at most
+two panes. Complex tri-fold per-hinge activation requires device validation.
+
+The unsigned HAP compiles; it has **not** been run on a HarmonyOS foldable.
+Signing/installing and testing inner/outer displays, rotation, floating windows,
+and firmware-specific crease coordinates remain separate acceptance steps.
+See [OHOS implementation and build notes](docs/ohos-support.md).
 
 [![Pub release](https://img.shields.io/pub/v/responsive_framework.svg?style=flat-square)](https://pub.dev/packages/responsive_framework)
 
@@ -217,7 +411,7 @@ Please reach out via the contact links below if you are interested.
 
 Responsive Framework was created out of a desire for a better way to manage responsiveness. The ability to automatically adapt UI to different sizes opens up a world of possibilities. Here at Codelessly, we're building a Flutter app UI and website builder, development tools, and UI templates to increase productivity. If that sounds interesting, you'll want to subscribe to updates below 😎
 
-Responsive Framework is licensed under Zero-Clause BSD and released as Emailware. If you like this project or it helped you, please subscribe to updates. Although it is not required, you might miss the goodies we share!
+Responsive Framework is licensed under MIT and released as Emailware. If you like this project or it helped you, please subscribe to updates. Although it is not required, you might miss the goodies we share!
 
 <a href="https://codelessly.com/?utm_medium=banner&utm_campaign=newsletter_subscribe" target="_blank"><img src="https://raw.githubusercontent.com/Codelessly/ResponsiveFramework/master/packages/Email%20Newsletter%20Signup.png"></a>
 
@@ -287,17 +481,5 @@ Flutter is a game-changing technology that will revolutionize not just developme
  
 ## License
 
-    BSD Zero Clause License
-
-    Copyright © 2024 Codelessly
-
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose with or without fee is hereby granted.
-
-    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-    AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-    LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-    OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-    PERFORMANCE OF THIS SOFTWARE.
+<!-- 以仓库 LICENSE 为准，修正旧文档残留的 BSD 标注，避免许可信息不一致。 -->
+Released under the [MIT License](LICENSE). Copyright © 2024 Codelessly.

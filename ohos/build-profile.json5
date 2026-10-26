@@ -1,0 +1,6 @@
+{
+  // HAR 只提供插件，窗口与签名配置由宿主应用管理。
+  "apiType": "stageMode",
+  "buildOption": {},
+  "targets": [{ "name": "default" }]
+}

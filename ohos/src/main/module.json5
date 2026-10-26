@@ -1,0 +1,8 @@
+{
+  // 折叠屏数据无需相册、传感器或窗口管理特权权限。
+  "module": {
+    "name": "responsive_framework",
+    "type": "har",
+    "deviceTypes": ["default", "tablet", "2in1"]
+  }
+}

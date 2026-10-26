@@ -1,0 +1,11 @@
+{
+  // Flutter OH 工具链注入 flutter.har，避免提交与本机绑定的二进制产物。
+  "name": "responsive_framework",
+  "version": "1.7.0",
+  "description": "Fold posture and crease geometry for Flutter OHOS",
+  "main": "index.ets",
+  "license": "MIT",
+  "dependencies": {
+    "@ohos/flutter_ohos": "file:./har/flutter.har"
+  }
+}

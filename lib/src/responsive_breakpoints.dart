@@ -146,6 +146,8 @@ class ResponsiveBreakpointsState extends State<ResponsiveBreakpoints>
     ResponsiveTargetPlatform.iOS,
     ResponsiveTargetPlatform.android,
     ResponsiveTargetPlatform.fuchsia,
+    // 鸿蒙折叠屏同样按窗口形状选择横屏断点。
+    ResponsiveTargetPlatform.ohos,
   ];
 
   ResponsiveTargetPlatform? platform;
@@ -186,16 +188,11 @@ class ResponsiveBreakpointsState extends State<ResponsiveBreakpoints>
 
   /// Set [breakpoints] and [breakpointSegments].
   void setBreakpoints() {
-    // Optimization. Only update breakpoints if dimensions have changed.
-    if ((windowWidth != getWindowWidth()) ||
-        (windowHeight != getWindowHeight()) ||
-        (windowWidth == 0)) {
-      windowWidth = getWindowWidth();
-      windowHeight = getWindowHeight();
-      breakpoints.clear();
-      breakpoints.addAll(getActiveBreakpoints());
-      breakpoints.sort(ResponsiveUtils.breakpointComparator);
-    }
+    // 窗口、平台或断点配置都可能单独变化，重新生成快照避免旧缓存。
+    windowWidth = getWindowWidth();
+    windowHeight = getWindowHeight();
+    breakpoints = List<Breakpoint>.of(getActiveBreakpoints())
+      ..sort(ResponsiveUtils.breakpointComparator);
   }
 
   @override
@@ -214,58 +211,14 @@ class ResponsiveBreakpointsState extends State<ResponsiveBreakpoints>
         ResponsiveUtils.debugLogBreakpoints(widget.breakpointsLandscape);
       }
     }
-
-    // Dimensions are only available after first frame paint.
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Breakpoints must be initialized before the first frame is drawn.
-      setBreakpoints();
-      // Directly updating dimensions is safe because frame callbacks
-      // in initState are guaranteed.
-      setDimensions();
-      setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    super.didChangeMetrics();
-    // When physical dimensions change, update state.
-    // The required MediaQueryData is only available
-    // on the next frame for physical dimension changes.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Widget could be destroyed by resize. Verify widget
-      // exists before updating dimensions.
-      if (mounted) {
-        setBreakpoints();
-        setDimensions();
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void didUpdateWidget(ResponsiveBreakpoints oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // When [ResponsiveBreakpoints]'s constructor is
-    // used directly in the widget tree and a parent
-    // MediaQueryData changes, update state.
-    // The screen dimensions are passed immediately.
-    setBreakpoints();
-    setDimensions();
-    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    // Platform initialization requires context.
+    // 在首帧与每次依赖变化时同步计算，局部 MediaQuery 更新也能立即生效。
     setPlatform();
+    setBreakpoints();
+    setDimensions();
 
     return InheritedResponsiveBreakpoints(
       data: ResponsiveBreakpointsData.fromWidgetState(this),
@@ -319,7 +272,8 @@ class ResponsiveBreakpointsData {
       screenWidth: state.screenWidth,
       screenHeight: state.screenHeight,
       breakpoint: state.breakpoint,
-      breakpoints: state.breakpoints,
+      // 使用不可变列表，避免后续刷新改变已发布的数据快照。
+      breakpoints: List.unmodifiable(state.breakpoints),
       isMobile: state.breakpoint.name == MOBILE,
       isPhone: state.breakpoint.name == PHONE,
       isTablet: state.breakpoint.name == TABLET,
@@ -385,11 +339,20 @@ class ResponsiveBreakpointsData {
           runtimeType == other.runtimeType &&
           screenWidth == other.screenWidth &&
           screenHeight == other.screenHeight &&
-          breakpoint == other.breakpoint;
+          breakpoint == other.breakpoint &&
+          // 配置与方向影响消费者的条件判断，必须参与更新通知。
+          orientation == other.orientation &&
+          listEquals(breakpoints, other.breakpoints) &&
+          isMobile == other.isMobile &&
+          isPhone == other.isPhone &&
+          isTablet == other.isTablet &&
+          isDesktop == other.isDesktop;
 
   @override
   int get hashCode =>
-      screenWidth.hashCode * screenHeight.hashCode * breakpoint.hashCode;
+      // 哈希与相等判断保持一致，支持作为响应式快照的集合键。
+      Object.hash(screenWidth, screenHeight, breakpoint, orientation,
+          Object.hashAll(breakpoints), isMobile, isPhone, isTablet, isDesktop);
 }
 
 /// Creates an immutable widget that exposes [ResponsiveBreakpointsData]

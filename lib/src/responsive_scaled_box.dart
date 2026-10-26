@@ -1,3 +1,5 @@
+// 折痕由引擎定义，缩放时必须连同矩形一起转换。
+import 'dart:ui' show DisplayFeature;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -54,6 +56,19 @@ class ResponsiveScaledBox extends StatelessWidget {
               return MediaQuery(
                 data: mediaQueryData.copyWith(
                     size: Size(scaledWidth, scaledHeight),
+                    // 内容与折痕使用同一逻辑坐标，避免缩放后避让位置偏移。
+                    displayFeatures:
+                        mediaQueryData.displayFeatures.map((feature) {
+                      final sx = scaledWidth / mediaQueryData.size.width;
+                      final sy = scaledHeight / mediaQueryData.size.height;
+                      final rect = feature.bounds;
+                      return DisplayFeature(
+                        bounds: Rect.fromLTRB(rect.left * sx, rect.top * sy,
+                            rect.right * sx, rect.bottom * sy),
+                        type: feature.type,
+                        state: feature.state,
+                      );
+                    }).toList(growable: false),
                     viewInsets: scaledViewInsets,
                     viewPadding: scaledViewPadding,
                     padding: scaledPadding),

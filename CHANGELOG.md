@@ -1,4 +1,28 @@
 # Changelog
+<!-- OHOS 的构建验证与真机验收分开记录，避免把 HAP 构建当成设备适配完成。 -->
+## 1.7.0
+- Add an OHOS ArkTS plugin for fold status, display mode, crease rectangles, and hinge angles.
+- Bridge screen-pixel rectangles into Flutter view coordinates with display and viewport validation.
+- Add `ResponsiveFoldable.anglesOf` for multi-hinge data; `angleOf` and `hingeAngleStream` use the first hinge on OHOS.
+- Map OH platform enums without referencing OH-only symbols from the standard Flutter SDK.
+- Add an independent `example_ohos` host compatible with Flutter OH 3.35.8.
+- Compile an unsigned HarmonyOS HAP; physical foldable device validation remains required.
+- Default `ResponsiveTwoPane.breakpoint` to 600 on OHOS (840 elsewhere), so Mate X class inner displays use two panes.
+- Prefer `getLiveCreaseRegion` (API 20+) and treat empty crease lists as missing geometry.
+
+<!-- 记录最低版本变化，避免升级后才发现原生工具链要求。 -->
+## 1.6.0
+<!-- 补齐可复用的数据和策略接口，避免业务依赖内部实现或重复推断布局。 -->
+- Expose platform-neutral posture, nullable fold capability, iOS angles, and unbridged window regions through `ResponsiveFoldable` queries.
+- Add explicit single/dual modes, minimum pane bounds, immutable resolved layout queries, and a control-to-window anchor helper.
+- Keep Android window posture available inside locally cropped panes; avoid iOS posture/region rebuilds on angle-only updates.
+- Add `ResponsiveFoldable` for iPhone Duo reserved regions and Android engine display features.
+- Add `ResponsiveTwoPane` for hinge-aware horizontal/vertical layouts, RTL, local pane metrics, and retained widget state.
+- Fix breakpoint updates on the first frame, local MediaQuery changes, configuration changes, and platform changes.
+- Transform display-feature coordinates when scaling or constraining content.
+- Require Dart 3.5+, Flutter 3.24+, and iOS 15+ when building the iOS plugin. Use the iOS 27.1 SDK for Duo reserved regions.
+- Run the local example with fold previews; update its Android and iOS host projects.
+
 ## 1.5.1
 - Fix ScrollBehavior missing default values.
 

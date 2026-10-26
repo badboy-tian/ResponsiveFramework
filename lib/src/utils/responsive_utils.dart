@@ -60,24 +60,17 @@ enum ResponsiveTargetPlatform {
   macOS,
   windows,
   web,
+  // OH 分支增加了平台枚举；未来未知平台保持显式未知，避免误判为手机。
+  ohos,
+  unknown,
 }
 
 /// A helper extension to convert [TargetPlatform] to [ResponsiveTargetPlatform].
 extension TargetPlatformExtension on TargetPlatform {
-  ResponsiveTargetPlatform get responsiveTargetPlatform {
-    switch (this) {
-      case TargetPlatform.android:
-        return ResponsiveTargetPlatform.android;
-      case TargetPlatform.fuchsia:
-        return ResponsiveTargetPlatform.fuchsia;
-      case TargetPlatform.iOS:
-        return ResponsiveTargetPlatform.iOS;
-      case TargetPlatform.linux:
-        return ResponsiveTargetPlatform.linux;
-      case TargetPlatform.macOS:
-        return ResponsiveTargetPlatform.macOS;
-      case TargetPlatform.windows:
-        return ResponsiveTargetPlatform.windows;
-    }
-  }
+  // 按稳定名称映射，避免直接引用 TargetPlatform.ohos 导致标准 SDK 编译失败。
+  ResponsiveTargetPlatform get responsiveTargetPlatform =>
+      ResponsiveTargetPlatform.values.firstWhere(
+        (platform) => platform.name == name,
+        orElse: () => ResponsiveTargetPlatform.unknown,
+      );
 }

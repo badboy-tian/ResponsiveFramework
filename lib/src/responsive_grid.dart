@@ -250,6 +250,8 @@ class _ResponsiveGridViewLayout extends BoxScrollView {
     required this.gridDelegate,
     required this.childrenDelegate,
     this.itemCount,
+    // 保留旧版 Flutter 的缓存接口，直到最低版本支持 scrollCacheExtent。
+    // ignore: deprecated_member_use
     super.cacheExtent,
     int? semanticChildCount,
     super.dragStartBehavior,

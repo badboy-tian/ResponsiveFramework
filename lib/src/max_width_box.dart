@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'utils/region_media_query.dart';
+
 class MaxWidthBox extends StatelessWidget {
   final double? maxWidth;
   final Widget child;
@@ -21,16 +23,7 @@ class MaxWidthBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    MediaQueryData mediaQuery = MediaQuery.of(context);
-
-    if (maxWidth != null) {
-      if (mediaQuery.size.width > maxWidth!) {
-        mediaQuery = mediaQuery.copyWith(
-            size: Size(maxWidth! - (padding?.horizontal ?? 0),
-                mediaQuery.size.height - (padding?.vertical ?? 0)));
-      }
-    }
-
+    final media = MediaQuery.of(context);
     return Align(
       alignment: alignment,
       child: ConstrainedBox(
@@ -38,10 +31,30 @@ class MaxWidthBox extends StatelessWidget {
         child: Container(
           color: backgroundColor,
           padding: padding,
-          child: MediaQuery(
-            data: mediaQuery,
-            child: child,
-          ),
+          child: LayoutBuilder(builder: (context, constraints) {
+            // 居中和内边距会改变区域原点，必须裁剪并平移折痕，而非只改 size。
+            final width = constraints.hasBoundedWidth
+                ? constraints.maxWidth
+                : media.size.width;
+            final height = constraints.hasBoundedHeight
+                ? constraints.maxHeight
+                : media.size.height;
+            final insets = padding ?? EdgeInsets.zero;
+            final resolved = alignment.resolve(Directionality.of(context));
+            final offset = resolved.alongOffset(Offset(
+                  (media.size.width - width - insets.horizontal)
+                      .clamp(0.0, double.infinity),
+                  (media.size.height - height - insets.vertical)
+                      .clamp(0.0, double.infinity),
+                )) +
+                Offset(insets.left, insets.top);
+            final rect = (offset & Size(width, height))
+                .intersect(Offset.zero & media.size);
+            return MediaQuery(
+              data: mediaQueryForRegion(media, rect),
+              child: child,
+            );
+          }),
         ),
       ),
     );

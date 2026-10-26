@@ -1,0 +1,9 @@
+# 原生依赖和构建缓存由宿主工具链生成，不能绑定某台开发机。
+har/
+oh_modules/
+.hvigor/
+build/
+local.properties
+oh-package-lock.json5
+# DevEco 自动生成，不能把 debug 模式常量作为库源码提交。
+BuildProfile.ets
