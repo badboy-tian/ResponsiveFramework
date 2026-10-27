@@ -243,6 +243,31 @@ Builder(builder: (buttonContext) => IconButton(
 
 ## 鸿蒙 / OHOS（1.7.0 起）
 
+双折叠与阔折叠通常按窗口宽度选择单栏或双栏；三折叠的两个折轴可能产生多个区域。完全展开时的折痕不一定是遮挡，默认仍按窗口尺寸布局。悬停且系统报告有效折痕时可使用 `ResponsiveMultiPane`，按实际区域显示多个子组件：
+
+```dart
+ResponsiveMultiPane(
+  children: [const NavigationPane(), const ContentPane(), const DetailPane()],
+)
+```
+
+没有分隔时默认显示第一个窗格，可用 `singlePaneIndex` 切换；额外子组件会隐藏并保留状态。`ResponsiveFoldable.creaseBoundsOf(context)` 可读取 OHOS 原生报告且通过坐标校验的折痕，包括展开态；为空表示不可用或未报告，并不代表设备没有折轴。若业务需要按展开折痕分割，应自行将这些矩形转为 `DisplayFeature` 并显式设置 `splitFlatFolds: true`。三折不同折轴的状态与折痕对应关系仍需真机验证。
+
+```dart
+// 使用 dart:ui 中的 DisplayFeature / DisplayFeatureType / DisplayFeatureState。
+final folds = ResponsiveFoldable.creaseBoundsOf(context).map((rect) =>
+  DisplayFeature(bounds: rect, type: DisplayFeatureType.fold,
+      state: DisplayFeatureState.postureFlat)).toList();
+ResponsiveMultiPane(
+  displayFeatures: folds,
+  splitFlatFolds: true,
+  children: [const NavigationPane(), const ContentPane(), const DetailPane()],
+)
+```
+
+上例要求组件位于 `ResponsiveFoldable` 对应窗口坐标原点；嵌套在有偏移的容器时，需要先转换到容器局部坐标。
+示例“笔记”页面的“三折布局预览”可以切换三行和三列；预览使用合成折线，不能作为设备原生数据验收。
+
 <!-- Flutter 示例与 OHOS 原生宿主按插件标准结构共存于 example/。 -->
 `ohos/` 为原生 ArkTS 插件，Flutter OH 根据 pubspec 自动注册。UI 层继续使用 `ResponsiveFoldable` 与 `ResponsiveTwoPane`，无需另写一套鸿蒙布局。
 

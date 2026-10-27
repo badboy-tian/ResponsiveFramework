@@ -1,6 +1,7 @@
 # Changelog
 <!-- OHOS 的构建验证与真机验收分开记录，避免把 HAP 构建当成设备适配完成。 -->
 ## 1.7.0
+- Expose validated OHOS crease metadata independently of separating features and add `ResponsiveMultiPane` for multiple reported partitions.
 - Add an OHOS ArkTS plugin for fold status, display mode, crease rectangles, and hinge angles.
 - Bridge screen-pixel rectangles into Flutter view coordinates with display and viewport validation.
 - Add `ResponsiveFoldable.anglesOf` for multi-hinge data; `angleOf` and `hingeAngleStream` use the first hinge on OHOS.

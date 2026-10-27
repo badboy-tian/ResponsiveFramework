@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import 'utils/region_media_query.dart';
+import 'utils/fold_regions.dart';
 
 /// 显式策略只控制窗格数量，始终保留物理铰链避让和最小尺寸约束。
 enum ResponsiveTwoPaneMode { auto, single, dual }
@@ -165,10 +166,8 @@ class ResponsiveTwoPane extends StatelessWidget {
                       rect.right > bounds.left
                   : rect.overlaps(bounds))
           .map((rect) => rect.intersect(bounds));
-      final regions =
-          DisplayFeatureSubScreen.subScreensInBounds(bounds, obstructions)
-              .where((region) => !region.isEmpty)
-              .toList();
+      // 多条折线逐区域处理，避免把已经切出的窗格扩大。
+      final regions = foldRegions(bounds, obstructions);
       // 边缘铰链只留下一个区域时，普通宽屏分栏也必须限制在该区域内。
       final usable = regions.length == 1 ? regions.single : bounds;
       Rect first = usable;

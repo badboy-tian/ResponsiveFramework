@@ -15,12 +15,15 @@ class OhosFoldableData {
       {this.isFoldable,
       this.posture = ResponsiveFoldPosture.unknown,
       this.features = const [],
+      this.creases = const [],
       this.angles = const [],
       this.geometryValid = false});
 
   final bool? isFoldable;
   final ResponsiveFoldPosture posture;
   final List<DisplayFeature> features;
+  // 原生折痕与悬停避让分开，展开态不能被误认为存在物理遮挡。
+  final List<Rect> creases;
   final List<double> angles;
   final bool geometryValid;
 
@@ -35,12 +38,11 @@ class OhosFoldableData {
       3 || 13 || 21 || 22 || 23 => ResponsiveFoldPosture.halfOpened,
       _ => ResponsiveFoldPosture.unknown,
     };
-    final angles = raw['angles'] is List
-        ? (raw['angles'] as List)
-            .whereType<num>()
-            .where((n) => n.isFinite && n >= 0 && n <= 180)
-            .map((n) => n.toDouble())
-            .toList()
+    final rawAngles = raw['angles'];
+    // 任一折轴非法时舍弃整组，避免过滤后把第二折轴误当成第一折轴。
+    final angles = rawAngles is List &&
+            rawAngles.every((n) => n is num && n.isFinite && n >= 0 && n <= 180)
+        ? rawAngles.cast<num>().map((n) => n.toDouble()).toList()
         : <double>[];
     final view = _rect(raw['viewRect']);
     final valid = view != null &&
@@ -51,9 +53,11 @@ class OhosFoldableData {
         raw['displayId'] != null &&
         raw['displayId'] == raw['creaseDisplayId'];
     final features = <DisplayFeature>[];
-    // 关闭、展开以及几何来源不匹配时不发布遮挡，保留姿态但不猜测折线位置。
+    final creases = <Rect>[];
+    // 展开态仅暴露折痕元数据；半折时才将其注入自动避让的 MediaQuery。
     if (valid &&
-        posture == ResponsiveFoldPosture.halfOpened &&
+        (posture == ResponsiveFoldPosture.halfOpened ||
+            posture == ResponsiveFoldPosture.flat) &&
         raw['creases'] is List) {
       for (final entry in raw['creases'] as List) {
         final rect = _rect(entry);
@@ -70,11 +74,15 @@ class OhosFoldableData {
                 local.bottom < bounds.bottom);
         if (!crosses) continue;
         final clipped = local.intersect(bounds);
-        features.add(DisplayFeature(
-            bounds: Rect.fromLTRB(clipped.left / dpr, clipped.top / dpr,
-                clipped.right / dpr, clipped.bottom / dpr),
-            type: DisplayFeatureType.fold,
-            state: DisplayFeatureState.postureHalfOpened));
+        final logical = Rect.fromLTRB(clipped.left / dpr, clipped.top / dpr,
+            clipped.right / dpr, clipped.bottom / dpr);
+        creases.add(logical);
+        if (posture == ResponsiveFoldPosture.halfOpened) {
+          features.add(DisplayFeature(
+              bounds: logical,
+              type: DisplayFeatureType.fold,
+              state: DisplayFeatureState.postureHalfOpened));
+        }
       }
     }
     return OhosFoldableData(
@@ -83,6 +91,7 @@ class OhosFoldableData {
         posture: posture,
         angles: List.unmodifiable(angles),
         features: List.unmodifiable(features),
+        creases: List.unmodifiable(creases),
         geometryValid: valid);
   }
 
@@ -103,7 +112,7 @@ class OhosFoldableData {
   }
 }
 
-enum OhosFoldableAspect { posture, capability, features, angle }
+enum OhosFoldableAspect { posture, capability, features, creases, angle }
 
 /// 按字段通知，角度传感器事件不应使依赖姿态的整页布局重建。
 class OhosFoldableScope extends InheritedModel<OhosFoldableAspect> {
@@ -126,6 +135,8 @@ class OhosFoldableScope extends InheritedModel<OhosFoldableAspect> {
               data.isFoldable != oldWidget.data.isFoldable,
             OhosFoldableAspect.features =>
               !listEquals(data.features, oldWidget.data.features),
+            OhosFoldableAspect.creases =>
+              !listEquals(data.creases, oldWidget.data.creases),
             OhosFoldableAspect.angle =>
               !listEquals(data.angles, oldWidget.data.angles),
           });
@@ -153,7 +164,13 @@ class OhosFoldableChannel {
       .map((event) => event is Map ? event.cast<Object?, Object?>() : null);
   Stream<double> get angleStream => snapshots.expand((raw) {
         final values = raw?['angles'];
-        final first = values is List && values.isNotEmpty ? values.first : null;
+        // 与角度列表保持一致，任一折轴无效时不输出误导性的首轴值。
+        if (values is! List ||
+            !values
+                .every((n) => n is num && n.isFinite && n >= 0 && n <= 180)) {
+          return <double>[];
+        }
+        final first = values.isNotEmpty ? values.first : null;
         return first is num && first.isFinite && first >= 0 && first <= 180
             ? [first.toDouble()]
             : <double>[];
@@ -174,6 +191,7 @@ class _OhosFoldableProviderState extends State<OhosFoldableProvider>
     with WidgetsBindingObserver {
   Map<Object?, Object?>? _raw;
   StreamSubscription<Map<Object?, Object?>?>? _subscription;
+  int _revision = 0;
   final _channel = OhosFoldableChannel.instance;
   @override
   void initState() {
@@ -183,10 +201,17 @@ class _OhosFoldableProviderState extends State<OhosFoldableProvider>
   }
 
   Future<void> _start() async {
+    final revision = _revision;
     final initial = await _channel.getSnapshot();
     if (!mounted) return;
-    _apply(initial);
-    if (initial == null) return;
+    // 延迟返回的查询不能覆盖较新的窗口事件或恢复前台结果。
+    if (revision == _revision) _apply(initial);
+    if (initial != null) _listen();
+  }
+
+  void _listen() {
+    // 恢复前台后插件可能才可用；确保恢复成功时也能接收后续事件。
+    if (_subscription != null) return;
     _subscription = _channel.snapshots.listen(_apply, onError: (Object error) {
       debugPrint('ResponsiveFramework OHOS events: $error');
       _apply(null);
@@ -194,10 +219,21 @@ class _OhosFoldableProviderState extends State<OhosFoldableProvider>
   }
 
   void _apply(Map<Object?, Object?>? value) {
-    if (mounted) setState(() => _raw = value);
+    if (mounted) {
+      _revision++;
+      setState(() => _raw = value);
+    }
   }
 
-  Future<void> _refresh() async => _apply(await _channel.getSnapshot());
+  Future<void> _refresh() async {
+    final revision = _revision;
+    final value = await _channel.getSnapshot();
+    if (revision == _revision) {
+      _apply(value);
+      if (mounted && value != null) _listen();
+    }
+  }
+
   @override
   void didChangeMetrics() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -221,7 +257,8 @@ class _OhosFoldableProviderState extends State<OhosFoldableProvider>
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final data = OhosFoldableData.decode(
-        _raw, media.size, View.of(context).devicePixelRatio);    final engineHasFolds = media.displayFeatures.any((feature) =>
+        _raw, media.size, View.of(context).devicePixelRatio);
+    final engineHasFolds = media.displayFeatures.any((feature) =>
         feature.type == DisplayFeatureType.fold ||
         feature.type == DisplayFeatureType.hinge);
     final folds = engineHasFolds ? media.displayFeatures : data.features;
@@ -237,6 +274,7 @@ class _OhosFoldableProviderState extends State<OhosFoldableProvider>
                 isFoldable: data.isFoldable,
                 posture: data.posture,
                 angles: data.angles,
+                creases: data.creases,
                 features: List.unmodifiable(engineHasFolds
                     ? folds
                     : [...media.displayFeatures, ...folds]),

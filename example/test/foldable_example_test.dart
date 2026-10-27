@@ -33,4 +33,25 @@ void main() {
     expect(find.text('折叠后保留这段文字'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('three-fold preview switches direction and returns to notes',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('三折布局预览'));
+    await tester.pumpAndSettle();
+    // 合成折线只验证布局，两种方向都应展示全部三个区域。
+    expect(find.text('一'), findsOneWidget);
+    expect(find.text('二'), findsOneWidget);
+    expect(find.text('三'), findsOneWidget);
+    final before = tester.getCenter(find.text('三'));
+    await tester.tap(find.byTooltip('切换方向'));
+    await tester.pumpAndSettle();
+    expect(tester.getCenter(find.text('三')).dy, greaterThan(before.dy));
+    expect(tester.takeException(), isNull);
+  });
 }

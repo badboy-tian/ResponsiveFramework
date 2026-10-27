@@ -203,6 +203,25 @@ void main() {
         const Rect.fromLTWH(350, 0, 450, 600));
   });
 
+  testWidgets('two parallel hinges keep both selected panes within regions',
+      (tester) async {
+    await layout(tester, size: const Size(900, 600), features: const [
+      DisplayFeature(
+          bounds: Rect.fromLTWH(300, 0, 0, 600),
+          type: DisplayFeatureType.fold,
+          state: DisplayFeatureState.postureHalfOpened),
+      DisplayFeature(
+          bounds: Rect.fromLTWH(600, 0, 0, 600),
+          type: DisplayFeatureType.fold,
+          state: DisplayFeatureState.postureHalfOpened),
+    ]);
+    // 双窗格只消费前两个区域，但不得侵入第三个区域或跨过任一折线。
+    expect(
+        tester.getRect(find.byKey(first)), const Rect.fromLTWH(0, 0, 300, 600));
+    expect(tester.getRect(find.byKey(second)),
+        const Rect.fromLTWH(300, 0, 300, 600));
+  });
+
   testWidgets('hinge gap is excluded and RTL reverses reading order',
       (tester) async {
     await layout(tester, rtl: true, features: const [

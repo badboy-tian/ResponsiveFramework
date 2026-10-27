@@ -34,6 +34,8 @@ UI 仍使用 `ResponsiveFoldable` 和 `ResponsiveTwoPane`。通过 `MaterialApp.
 | --- | --- |
 | `postureOf` / `isFoldableOf` | 姿态、可选能力；原生数据不可用时保持未知，并允许引擎数据回退 |
 | `displayFeaturesOf` | 有效显示特征，供自定义布局查询，不根据屏幕比例猜测中线 |
+| `creaseBoundsOf` | 原生报告且通过窗口坐标校验的折痕，包括展开态；空列表不代表设备没有折轴 |
+| `ResponsiveMultiPane` | 按实际分隔区域显示多个子组件，展开折痕分栏需显式启用 |
 | `ResponsiveTwoPane.of(context).availableRegions` | 双窗格布局计算得到的可用区域 |
 | `angleOf` | 首折轴最新有效角度，未知为 `null` |
 | `anglesOf` | 全部有效角度的只读列表，保留平台顺序；尚无传感器事件时为空 |
@@ -45,7 +47,7 @@ UI 仍使用 `ResponsiveFoldable` 和 `ResponsiveTwoPane`。通过 `MaterialApp.
 
 原生通道内部使用带版本号的快照（`wireVersion: 1`），不是公开宿主协议。折痕为屏幕物理像素，转换时减去 `windowRect + drawableRect` 的屏幕原点，再除以当前 FlutterView 的 DPR。必须满足显示 ID 一致、原生可绘制尺寸与 FlutterView 物理尺寸一致，才发布几何；尺寸切换中的不匹配快照只保留姿态与能力。
 
-仅半折姿态发布穿过视口的有效分隔折痕。关闭、展开和未知姿态清除旧分隔数据。支持双折轴状态枚举及多个矩形/角度；`ResponsiveTwoPane` 最多渲染两个窗格。三折设备各折轴的实际可见性、方向与区域选择仍需设备验收。
+仅半折姿态发布穿过视口的有效分隔折痕。展开态保留通过校验的折痕元数据，不自动视作遮挡。`ResponsiveTwoPane` 最多渲染两个窗格；`ResponsiveMultiPane` 可消费多个分隔区域。三折设备各折轴的实际可见性、方向与区域选择仍需设备验收，混合姿态暂无法保证每个折痕对应的独立状态。
 
 角度变化复用几何缓存；InheritedModel 按姿态、能力、几何、角度分别通知，避免角度传感器事件触发仅依赖姿态的组件重建。
 
@@ -83,6 +85,8 @@ $HVIGOR assembleHap \
 `flutter build hap` 输出为 `example/build/ohos/hap/entry-default-unsigned.hap`；直接使用 Hvigor 时输出为 `example/ohos/entry/build/default/outputs/default/entry-default-unsigned.hap`。`flutter build hap` 可能重新生成 local.properties；如果 SDK 冲突，检查生成后的路径，或使用 DevEco 打开宿主构建。工具链中旧 Flutter embedding 对较新 SDK 存在弃用告警，当前未升级或修改 SDK 自身代码。
 
 ## 验证边界
+
+本次多区域改进使用合成折线验证三行、三列、RTL、隐藏窗格状态和展开态显式分割；它证明 Dart 布局算法，不证明设备固件一定提供折线或各折轴状态。OH Flutter 完整测试 41 项通过，随后新增的双窗格多折线回归也在 OH Flutter 下通过；最新无签名 HAP 构建成功。
 
 - 标准 Flutter：组件库 35 个测试通过，1 个仅 OH 枚举分派测试跳过。
 - OH Flutter：组件库 36 个测试通过，包含实际 `TargetPlatform.ohos` 分派；统一示例 1 个组件测试通过。
@@ -131,11 +135,11 @@ $HDC shell aa start \
 | 场景 | 预期结果 |
 | --- | --- |
 | 外屏折叠 | 状态不保留旧折痕；内容是单窗格 |
-| 内屏完全展开 | 折痕数为 0；无内容落在中线遮挡区域 |
+| 内屏完全展开 | 默认按窗口尺寸重排；原生折痕元数据可用与否均需记录 |
 | 半折（横、竖各一次） | 状态为 `halfOpened`；折痕数大于 0；列表和编辑器分别落在两个区域 |
 | 内外屏切换、旋转 | 页面不崩溃，不短暂使用旧折痕；编辑器输入仍保留 |
 | 分屏或悬浮窗 | 若 FlutterView 未填满 drawableRect，预期只保留姿态且抑制折痕几何；记录该机型/固件 |
-| 双折轴设备 | 核对每个角度和折痕的顺序；TwoPane 只选两个安全区域 |
+| 双折轴设备 | 核对每个角度和折痕的顺序；多窗格检查各区域无重叠，TwoPane 只选两个区域 |
 
 安装后保存日志，便于定位设备差异：
 

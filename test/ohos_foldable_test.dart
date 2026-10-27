@@ -1,7 +1,8 @@
 import 'dart:ui' show DisplayFeatureState;
 
 // 平台覆盖变量只由 foundation 导出，显式列出以兼容两个 SDK 的测试环境。
-import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride;
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -99,8 +100,27 @@ void main() {
       null
     ];
     final data = OhosFoldableData.decode(raw, const Size(800, 600), 2);
-    expect(data.angles, [85.0]);
+    // 不能过滤无效首轴后把第二轴当作第一轴。
+    expect(data.angles, isEmpty);
     expect(data.features, isEmpty);
+  });
+
+  test('flat crease metadata does not become a separating feature', () {
+    final raw = snapshot(status: 11)
+      ..['creases'] = [
+        {'left': 500, 'top': 200, 'width': 0, 'height': 1200},
+        {'left': 1200, 'top': 200, 'width': 0, 'height': 1200},
+      ];
+    final data = OhosFoldableData.decode(raw, const Size(800, 600), 2);
+    expect(data.creases, [
+      const Rect.fromLTWH(200, 0, 0, 600),
+      const Rect.fromLTWH(550, 0, 0, 600)
+    ]);
+    expect(data.features, isEmpty);
+    expect(
+        OhosFoldableData.decode(snapshot(status: 2), const Size(800, 600), 2)
+            .creases,
+        isEmpty);
   });
 
   test('platform mapping compiles with both standard and OH enums', () {

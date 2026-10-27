@@ -107,6 +107,12 @@ class ResponsiveFoldable extends StatelessWidget {
     return angle == null ? const [] : List.unmodifiable([angle]);
   }
 
+  /// OHOS 原生报告的折痕矩形，使用入口窗口逻辑坐标；不可用时为空。
+  /// 展开态的折痕只作为元数据，不自动认作遮挡或要求分栏。
+  static List<Rect> creaseBoundsOf(BuildContext context) =>
+      OhosFoldableScope.maybeOf(context, OhosFoldableAspect.creases)?.creases ??
+      const [];
+
   /// 高帧率效果直接监听流，避免通过整页 rebuild 驱动动画；监听者负责取消。
   static Stream<double> get hingeAngleStream {
     if (kIsWeb) return const Stream<double>.empty();

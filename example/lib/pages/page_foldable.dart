@@ -82,9 +82,19 @@ class _FoldablePageState extends State<FoldablePage> {
           showSecondary: _detail,
           primary: Scaffold(
             backgroundColor: const Color(0xFFF2F6F6),
-            appBar: AppBar(
-                title: const Text('笔记'),
-                actions: [const _FoldStateBadge(), _modeMenu()]),
+            appBar: AppBar(title: const Text('笔记'), actions: [
+              const _FoldStateBadge(),
+              IconButton(
+                tooltip: '三折布局预览',
+                // 单独路由保留笔记页面的编辑状态，预览不冒充设备传感器数据。
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const _MultiFoldPreview()),
+                ),
+                icon: const Icon(Icons.view_column_outlined),
+              ),
+              _modeMenu(),
+            ]),
             body: SafeArea(
               top: false,
               child: ListView.builder(
@@ -170,6 +180,51 @@ class _FoldablePageState extends State<FoldablePage> {
       );
     });
   }
+}
+
+class _MultiFoldPreview extends StatefulWidget {
+  const _MultiFoldPreview();
+
+  @override
+  State<_MultiFoldPreview> createState() => _MultiFoldPreviewState();
+}
+
+class _MultiFoldPreviewState extends State<_MultiFoldPreview> {
+  bool _vertical = true;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('三折布局预览'), actions: [
+          IconButton(
+            tooltip: '切换方向',
+            onPressed: () => setState(() => _vertical = !_vertical),
+            icon: const Icon(Icons.screen_rotation),
+          ),
+        ]),
+        body: LayoutBuilder(builder: (context, constraints) {
+          final size = constraints.biggest;
+          // 预览使用合成折线，仅用于检查多区域布局与方向切换。
+          final folds = [
+            for (final part in [1, 2])
+              DisplayFeature(
+                bounds: _vertical
+                    ? Rect.fromLTWH(size.width * part / 3, 0, 0, size.height)
+                    : Rect.fromLTWH(0, size.height * part / 3, size.width, 0),
+                type: DisplayFeatureType.fold,
+                state: DisplayFeatureState.postureHalfOpened,
+              ),
+          ];
+          return ResponsiveMultiPane(
+            displayFeatures: folds,
+            children: [
+              for (final label in ['一', '二', '三'])
+                Center(
+                    child: Text(label,
+                        style: Theme.of(context).textTheme.headlineMedium)),
+            ],
+          );
+        }),
+      );
 }
 
 /// 示例中显示真实桥接数据，真机验收时可区分设备事件与手动预览。

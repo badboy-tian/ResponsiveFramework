@@ -187,6 +187,15 @@ tested on Flutter 3.24.
 <!-- Flutter 示例与 OHOS 原生宿主按插件标准结构共存于 example/。 -->
 ### HarmonyOS / OHOS (1.7.0+)
 
+`ResponsiveMultiPane` lays out children across reported separating folds. With
+no separator it displays `singlePaneIndex` and keeps other children offstage.
+`ResponsiveFoldable.creaseBoundsOf(context)` exposes validated OHOS crease
+rectangles, including flat ones, without treating them as occlusions. To split
+flat folds explicitly, provide `DisplayFeature`s and set `splitFlatFolds: true`.
+An empty list means no usable data, not proof that a device has no hinges.
+The example includes a three-pane orientation preview using simulated folds;
+it does not verify the native device sensor or crease geometry.
+
 The `ohos/` ArkTS plugin is registered automatically by Flutter OH. Existing
 `ResponsiveFoldable` / `ResponsiveTwoPane` calls work without a separate UI API.
 Use an **OH-enabled Flutter SDK**, not the standard SDK, for the HarmonyOS host:
