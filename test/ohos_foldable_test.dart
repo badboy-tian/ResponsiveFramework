@@ -123,6 +123,31 @@ void main() {
         isEmpty);
   });
 
+  test('captured trifold snapshot preserves both live crease regions', () {
+    // 使用模拟器原始非等分坐标，防止把真实双折轴退化成屏幕中线或丢失展开态元数据。
+    final raw = <Object?, Object?>{
+      'wireVersion': 1,
+      'isFoldable': true,
+      'foldStatus': 11,
+      'displayId': 0,
+      'creaseDisplayId': 0,
+      'viewRect': {'left': 0, 'top': 0, 'width': 3184, 'height': 2232},
+      'creases': [
+        {'left': 1008, 'top': 0, 'width': 128, 'height': 2232},
+        {'left': 2100, 'top': 0, 'width': 128, 'height': 2232},
+      ],
+    };
+    const dpr = 2.875;
+    final data = OhosFoldableData.decode(
+        raw, const Size(3184 / dpr, 2232 / dpr), dpr);
+    expect(data.geometryValid, isTrue);
+    expect(data.creases, [
+      const Rect.fromLTRB(1008 / dpr, 0, 1136 / dpr, 2232 / dpr),
+      const Rect.fromLTRB(2100 / dpr, 0, 2228 / dpr, 2232 / dpr),
+    ]);
+    expect(data.features, isEmpty);
+  });
+
   test('platform mapping compiles with both standard and OH enums', () {
     for (final platform in TargetPlatform.values) {
       expect(platform.responsiveTargetPlatform.name, platform.name);

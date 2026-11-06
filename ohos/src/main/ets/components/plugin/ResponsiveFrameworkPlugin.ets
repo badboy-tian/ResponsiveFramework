@@ -6,6 +6,7 @@ import {
 import display from '@ohos.display';
 import window from '@ohos.window';
 import HashMap from '@ohos.util.HashMap';
+import { BusinessError } from '@kit.BasicServicesKit';
 
 type Payload = HashMap<string, Object>;
 
@@ -184,7 +185,7 @@ export default class ResponsiveFrameworkPlugin implements FlutterPlugin, Ability
       // drawableRect 相对于窗口；windowRect 相对于屏幕，合成屏幕级 FlutterView 原点。
       value.set('viewRect', this.rect(windowRect.left + drawable.left, windowRect.top + drawable.top,
         drawable.width, drawable.height));
-      const crease = this.creaseRegion();
+      const crease = this.creaseRegion(value);
       if (crease === undefined) return value;
       value.set('creaseDisplayId', crease.displayId);
       const rects: window.Rect[] = [];
@@ -197,13 +198,25 @@ export default class ResponsiveFrameworkPlugin implements FlutterPlugin, Ability
   }
 
   // 官方悬停态实践使用 API 20 的实时折痕；旧系统或空结果再回退，空矩形不作为几何发布。
-  private creaseRegion(): display.FoldCreaseRegion | undefined {
+  private creaseRegion(value: Payload): display.FoldCreaseRegion | undefined {
+    // 保留两个接口各自的原始结果或错误码，避免把桥接失败误判为设备无折痕。
     try {
       const live = display.getDefaultDisplaySync().getLiveCreaseRegion();
+      value.set('liveCreaseResult', JSON.stringify(live) ?? 'undefined');
       if (live !== undefined && live.creaseRects.length > 0) return live;
-    } catch (_) { /* API 20 以下不可用 */ }
-    const current = display.getCurrentFoldCreaseRegion();
-    return current !== undefined && current.creaseRects.length > 0 ? current : undefined;
+    } catch (error) {
+      const detail = error as BusinessError;
+      value.set('liveCreaseError', `${detail.code}: ${detail.message}`);
+    }
+    try {
+      const current = display.getCurrentFoldCreaseRegion();
+      value.set('currentCreaseResult', JSON.stringify(current) ?? 'undefined');
+      return current !== undefined && current.creaseRects.length > 0 ? current : undefined;
+    } catch (error) {
+      const detail = error as BusinessError;
+      value.set('currentCreaseError', `${detail.code}: ${detail.message}`);
+      return undefined;
+    }
   }
 
   private emit(): void { this.sink?.success(this.snapshot()); }
